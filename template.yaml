@@ -10,6 +10,10 @@ Globals:
 Parameters:
   PolarstepsUsername:
     Type: String
+  SlackOAuthToken:
+    Type: String
+  SlackChannelId:
+    Type: String
 
 Resources:
   PolarstepsFunction:
@@ -21,6 +25,8 @@ Resources:
       Environment:
         Variables:
           POLARSTEPS_USERNAME: !Ref PolarstepsUsername
+          SLACK_OAUTH_TOKEN: !Ref SlackOAuthToken
+          SLACK_CHANNEL_ID: !Ref SlackChannelId
       Events:
         GetItems:
           Type: Api
