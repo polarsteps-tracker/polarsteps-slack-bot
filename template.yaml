@@ -7,6 +7,10 @@ Globals:
   Function:
     Timeout: 3
 
+Parameters:
+  PolarstepsUsername:
+    Type: String
+
 Resources:
   PolarstepsFunction:
     Type: AWS::Serverless::Function
@@ -14,3 +18,30 @@ Resources:
       CodeUri: polarsteps/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Environment:
+        Variables:
+          POLARSTEPS_USERNAME: !Ref PolarstepsUsername
+      Events:
+        GetItems:
+          Type: Api
+          Properties:
+            Path: /
+            Method: get
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameters
+                - ssm:GetParameter
+                - ssm:GetParametersByPath
+                - ssm:PutParameter
+              Resource:
+                - arn:aws:ssm:*:*:parameter/*
+
+  LastExecutionTimeParamater:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /polarsteps/lastExecutionTime
+      Type: String
+      Value: '0'
