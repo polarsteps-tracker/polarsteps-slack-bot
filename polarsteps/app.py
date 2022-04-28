@@ -6,9 +6,10 @@ import logging
 import requests
 import boto3
 
-username = os.environ.get('POLARSTEPS_USERNAME')
-oath_token = os.environ.get('SLACK_OAUTH_TOKEN')
-channel_id = os.environ.get('SLACK_CHANNEL_ID')
+SLACK_OAUTH_TOKEN = os.environ.get('SLACK_OAUTH_TOKEN')
+SLACK_CHANNEL_ID = os.environ.get('SLACK_CHANNEL_ID')
+POLARSTEPS_TRIP_ID = os.environ.get('POLARSTEPS_TRIP_ID')
+POLARSTEPS_COOKIE = os.environ.get('POLARSTEPS_COOKIE')
 
 client = boto3.client('ssm')
 
@@ -44,7 +45,7 @@ def send_slack_message(message, images):
     try:
         url = "https://slack.com/api/chat.postMessage"
         data = {
-            "channel": channel_id,
+            "channel": SLACK_CHANNEL_ID,
             "blocks": [
                 {
                     "type": "section",
@@ -67,7 +68,7 @@ def send_slack_message(message, images):
                 })
 
         requests.post(url, data, headers={
-            "Authorization": f"Bearer {oath_token}"
+            "Authorization": f"Bearer {SLACK_OAUTH_TOKEN}"
         })
     except Exception as e:
         logger.error(e)
@@ -79,11 +80,14 @@ def lambda_handler(_, __):
         last_execution_time = get_last_execution_time()
         current_time = time.time()
 
-        url = requests.get(f"https://api.polarsteps.com/users/byusername/{username}")
-        data = json.loads(url.text)
-        full_name = data['firstname'] + ' ' + data['lastname']
-        trips = data['alltrips']
-        steps = trips[0]['all_steps']  # TODO: find correct trip
+        data = json.loads(
+            requests.get(f"https://api.polarsteps.com/trips/{POLARSTEPS_TRIP_ID}", headers={"Cookie": POLARSTEPS_COOKIE}).text
+        )
+
+        user = data['user']
+        full_name = user['first_name'] + ' ' + user['last_name']
+        steps = [step for step in data['all_steps'] if 'creation_time' in step]
+
         new_steps = []
         for step in steps:
             if step['creation_time'] < last_execution_time:
@@ -102,8 +106,9 @@ def lambda_handler(_, __):
         new_steps.sort(key=lambda x: x['creation_time'])
         for step in new_steps:
             logger.debug(f"Processing step {step['id']}")
+            logger.debug(step)
             date_time = time.strftime('%Y-%m-%d %H:%M', time.localtime(step['creation_time']))
-            location = f"{step['location']['name']}({step['location']['country_code']})"
+            location = f"{step['location']['name']} ({step['location']['country_code']})"
             description = step['description']
             if 'media' in step:
                 images = list(map(lambda m: m['large_thumbnail_path'], step['media']))
@@ -117,6 +122,7 @@ def lambda_handler(_, __):
             send_slack_message(message, images)
 
         set_last_execution_time(current_time)
+
     except Exception as e:
         logger.error(e)
         raise e

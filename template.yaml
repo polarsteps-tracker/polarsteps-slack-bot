@@ -8,11 +8,13 @@ Globals:
     Timeout: 3
 
 Parameters:
-  PolarstepsUsername:
+  PolarstepsTripId:
     Type: String
   SlackOAuthToken:
     Type: String
   SlackChannelId:
+    Type: String
+  PolarstepsCookie:
     Type: String
 
 Resources:
@@ -22,11 +24,13 @@ Resources:
       CodeUri: polarsteps/
       Handler: app.lambda_handler
       Runtime: python3.9
+      Timeout: 30
       Environment:
         Variables:
-          POLARSTEPS_USERNAME: !Ref PolarstepsUsername
+          POLARSTEPS_TRIP_ID: !Ref PolarstepsTripId
           SLACK_OAUTH_TOKEN: !Ref SlackOAuthToken
           SLACK_CHANNEL_ID: !Ref SlackChannelId
+          POLARSTEPS_COOKIE: !Ref PolarstepsCookie
       Events:
         GetItems:
           Type: Api
