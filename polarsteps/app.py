@@ -60,16 +60,17 @@ def send_slack_message(message, images):
         if len(images) > 0:
             for image in images:
                 data['blocks'].append({
-                    "type": "section",
-                    "accessory": {
-                        "type": "image",
-                        "image_url": image,
-                    }
+                    "type": "image",
+                    "image_url": image,
+			        "alt_text": "no alt text"
                 })
 
-        requests.post(url, data, headers={
+        logger.debug(data)
+
+        response = requests.post(url, data, headers={
             "Authorization": f"Bearer {SLACK_OAUTH_TOKEN}"
         })
+        logger.debug(response.text)
     except Exception as e:
         logger.error(e)
         raise e
@@ -116,8 +117,8 @@ def lambda_handler(_, __):
                 images = []
             logger.info(f"{date_time} - {location} - {description}")
             logger.debug(images)
-            message = f"{full_name} is now in {location}\n"
-            message += f"{date_time}\n"
+            message = f"*{full_name} is now in {location}*\n"
+            message += f"_{date_time}_\n\n"
             message += f"{description}\n"
             send_slack_message(message, images)
 
