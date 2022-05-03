@@ -21,3 +21,4 @@ confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 disable_rollback = false
 image_repositories = []
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-q47kkphczetu"
