@@ -24,7 +24,7 @@ Resources:
       CodeUri: polarsteps/
       Handler: app.lambda_handler
       Runtime: python3.9
-      Timeout: 30
+      Timeout: 300
       Environment:
         Variables:
           POLARSTEPS_TRIP_ID: !Ref PolarstepsTripId
@@ -37,6 +37,11 @@ Resources:
           Properties:
             Path: /
             Method: get
+        CloudWatchEvent:
+          Type: Schedule
+          Properties:
+            Enabled: true
+            Schedule: cron(0 8 * * ? *) # Every day at 8:00 UTC
       Policies:
         - Version: '2012-10-17'
           Statement:

@@ -2,6 +2,7 @@ import os
 import json
 import time
 import logging
+from dataclasses import dataclass
 
 import requests
 import boto3
@@ -15,6 +16,15 @@ client = boto3.client('ssm')
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
+
+
+@dataclass
+class Step:
+    user: str
+    datetime: str
+    location: str
+    description: str
+    image_urls: [str]
 
 
 def get_last_execution_time():
@@ -41,33 +51,48 @@ def set_last_execution_time(time):
         raise e
 
 
-def send_slack_message(message, images):
-    try:
-        url = "https://slack.com/api/chat.postMessage"
-        data = {
-            "channel": SLACK_CHANNEL_ID,
-            "blocks": [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": message
-                    }
+def send_slack_message(step: Step):
+    url = "https://slack.com/api/chat.postMessage"
+    data = {
+        "channel": SLACK_CHANNEL_ID,
+        "blocks": [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"{step.user} is now in {step.location} - {step.datetime}",
+                    "emoji": True
                 }
-            ]
-        }
+            },
+            {
+                "type": "divider"
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": step.description
+                }
+            },
+        ]
+    }
 
-        if len(images) > 0:
-            for image in images:
-                data['blocks'].append({
-                    "type": "image",
-                    "image_url": image,
-			        "alt_text": "no alt text"
-                })
+    if len(step.image_urls) > 0:
+        data['blocks'].append({
+            "type": "divider"
+        })
 
-        logger.debug(data)
+    for image_url in step.image_urls:
+        data['blocks'].append({
+            "type": "image",
+            "image_url": image_url,
+            "alt_text": "no alt text"
+        })
 
-        response = requests.post(url, data, headers={
+    logger.debug(data)
+
+    try:
+        response = requests.post(url, json=data, headers={
             "Authorization": f"Bearer {SLACK_OAUTH_TOKEN}"
         })
         logger.debug(response.text)
@@ -87,40 +112,28 @@ def lambda_handler(_, __):
 
         user = data['user']
         full_name = user['first_name'] + ' ' + user['last_name']
-        steps = [step for step in data['all_steps'] if 'creation_time' in step]
+        steps = [step for step in data['all_steps'] if 'creation_time' in step and step['creation_time'] >= last_execution_time]
+        steps.sort(key=lambda x: x['creation_time'])
 
-        new_steps = []
-        for step in steps:
-            if step['creation_time'] < last_execution_time:
-                logger.debug(f"Skipping step {step['id']}, because it was created before {last_execution_time}")
-                continue
-            new_steps.append(step)
-
-        if len(new_steps) == 0:
+        if len(steps) == 0:
             logger.info("No new steps to process")
-            return {
-                "statusCode": 200,
-                "body": json.dumps([])
-            }
+            return {"statusCode": 200, "body": json.dumps([])}
 
-        print(f"Processing {len(new_steps)} new steps")
-        new_steps.sort(key=lambda x: x['creation_time'])
-        for step in new_steps:
+        print(f"Processing {len(steps)} new steps")
+        for step in steps:
             logger.debug(f"Processing step {step['id']}")
             logger.debug(step)
+
             date_time = time.strftime('%Y-%m-%d %H:%M', time.localtime(step['creation_time']))
             location = f"{step['location']['name']} ({step['location']['country_code']})"
             description = step['description']
-            if 'media' in step:
-                images = list(map(lambda m: m['large_thumbnail_path'], step['media']))
-            else:
-                images = []
-            logger.info(f"{date_time} - {location} - {description}")
-            logger.debug(images)
-            message = f"*{full_name} is now in {location}*\n"
-            message += f"_{date_time}_\n\n"
-            message += f"{description}\n"
-            send_slack_message(message, images)
+            images = ([media['large_thumbnail_path'] for media in step['media']]) if 'media' in step else []
+            step_model = Step(full_name, date_time, location, description, images)
+
+            logger.info(f"{step_model.user} on {step_model.datetime} at {step_model.location}")
+            logger.debug(step_model)
+
+            send_slack_message(step_model)
 
         set_last_execution_time(current_time)
 
@@ -129,7 +142,7 @@ def lambda_handler(_, __):
             "statusCode": 200,
             "body": json.dumps({
                 "success": True,
-                "message": f"Processed {len(new_steps)} new steps"
+                "message": f"Processed {len(steps)} new steps"
             })
         }
 
