@@ -22,7 +22,8 @@ logger.setLevel(logging.DEBUG)
 class Step:
     user: str
     datetime: str
-    location: str
+    country: str
+    place: str
     description: str
     image_urls: [str]
 
@@ -60,7 +61,7 @@ def send_slack_message(step: Step):
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": f"{step.user} is now in {step.location} - {step.datetime}",
+                    "text": f"{step.user} was in {step.place} ({step.country})",
                     "emoji": True
                 }
             },
@@ -74,13 +75,21 @@ def send_slack_message(step: Step):
                     "text": step.description
                 }
             },
+            {
+                "type": "section",
+                "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Where*\n{step.place} ({step.country})"
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*When*\n{step.datetime}"
+                    }
+                ]
+            }
         ]
     }
-
-    if len(step.image_urls) > 0:
-        data['blocks'].append({
-            "type": "divider"
-        })
 
     for image_url in step.image_urls:
         data['blocks'].append({
@@ -125,12 +134,11 @@ def lambda_handler(_, __):
             logger.debug(step)
 
             date_time = time.strftime('%Y-%m-%d %H:%M', time.localtime(step['creation_time']))
-            location = f"{step['location']['name']} ({step['location']['country_code']})"
             description = step['description']
             images = ([media['large_thumbnail_path'] for media in step['media']]) if 'media' in step else []
-            step_model = Step(full_name, date_time, location, description, images)
+            step_model = Step(full_name, date_time, step['location']['country_code'], step['location']['name'], description, images)
 
-            logger.info(f"{step_model.user} on {step_model.datetime} at {step_model.location}")
+            logger.info(f"{step_model.user} on {step_model.datetime} at {step_model.place} ({step_model.country})")
             logger.debug(step_model)
 
             send_slack_message(step_model)
