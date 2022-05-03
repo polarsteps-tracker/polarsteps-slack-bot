@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import requests
 import boto3
 
+ENVIRONMENT = os.environ.get('ENVIRONMENT')
 SLACK_OAUTH_TOKEN = os.environ.get('SLACK_OAUTH_TOKEN')
 SLACK_CHANNEL_ID = os.environ.get('SLACK_CHANNEL_ID')
 POLARSTEPS_TRIP_ID = os.environ.get('POLARSTEPS_TRIP_ID')
@@ -31,7 +32,7 @@ class Step:
 def get_last_execution_time():
     try:
         response = client.get_parameter(
-            Name='/polarsteps/lastExecutionTime'
+            Name=f"/polarsteps/lastExecutionTime/{ENVIRONMENT}"
         )
         return float(response['Parameter']['Value'])
     except Exception as e:
@@ -42,7 +43,7 @@ def get_last_execution_time():
 def set_last_execution_time(time):
     try:
         client.put_parameter(
-            Name='/polarsteps/lastExecutionTime',
+            Name=f"/polarsteps/lastExecutionTime/{ENVIRONMENT}",
             Value=str(time),
             Type='String',
             Overwrite=True

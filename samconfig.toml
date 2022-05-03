@@ -2,11 +2,22 @@ version = 0.1
 [default]
 [default.deploy]
 [default.deploy.parameters]
-stack_name = "polarsteps-slack-bot"
-s3_prefix = "polarsteps-slack-bot"
+stack_name = "polarsteps-slack-bot-dev"
+s3_prefix = "polarsteps-slack-bot-dev"
 region = "eu-west-1"
-confirm_changeset = true
+confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
 disable_rollback = true
 image_repositories = []
 s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-q47kkphczetu"
+
+[prod]
+[prod.deploy]
+[prod.deploy.parameters]
+stack_name = "polarsteps-slack-bot-prod"
+s3_prefix = "polarsteps-slack-bot-prod"
+region = "eu-west-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+disable_rollback = false
+image_repositories = []

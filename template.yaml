@@ -8,6 +8,9 @@ Globals:
     Timeout: 3
 
 Parameters:
+  Environment:
+    Type: String
+    Default: dev
   PolarstepsTripId:
     Type: String
   SlackOAuthToken:
@@ -27,6 +30,7 @@ Resources:
       Timeout: 300
       Environment:
         Variables:
+          ENVIRONMENT: !Ref Environment
           POLARSTEPS_TRIP_ID: !Ref PolarstepsTripId
           SLACK_OAUTH_TOKEN: !Ref SlackOAuthToken
           SLACK_CHANNEL_ID: !Ref SlackChannelId
@@ -57,6 +61,6 @@ Resources:
   LastExecutionTimeParamater:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: /polarsteps/lastExecutionTime
+      Name: !Sub "/polarsteps/lastExecutionTime/${Environment}"
       Type: String
       Value: '0'
