@@ -1,11 +1,11 @@
-import os
 import json
-import time
 import logging
+import os
+import time
 from dataclasses import dataclass
 
-import requests
 import boto3
+import requests
 
 ENVIRONMENT = os.environ.get('ENVIRONMENT')
 SLACK_OAUTH_TOKEN = os.environ.get('SLACK_OAUTH_TOKEN')
@@ -92,10 +92,10 @@ def send_slack_message(step: Step):
         ]
     }
 
-    for image_url in step.image_urls:
-        data['blocks'].append({
+    if len(step.image_urls) > 0:
+        data["blocks"].append({
             "type": "image",
-            "image_url": image_url,
+            "image_url": step.image_urls[0],
             "alt_text": "no alt text"
         })
 
@@ -106,6 +106,25 @@ def send_slack_message(step: Step):
             "Authorization": f"Bearer {SLACK_OAUTH_TOKEN}"
         })
         logger.debug(response.text)
+
+        thread = response.json()['ts']
+
+        if len(step.image_urls) > 1:
+            for image_url in step.image_urls[1:]:
+                reply_data = {
+                    "channel": SLACK_CHANNEL_ID,
+                    "thread_ts": thread,
+                    "blocks": [{
+                        "type": "image",
+                        "image_url": image_url,
+                        "alt_text": "no alt text"
+                    }],
+                }
+
+                response = requests.post(url, json=reply_data, headers={
+                    "Authorization": f"Bearer {SLACK_OAUTH_TOKEN}"
+                })
+            logger.debug(response.text)
     except Exception as e:
         logger.error(e)
         raise e
@@ -117,12 +136,14 @@ def lambda_handler(_, __):
         current_time = time.time()
 
         data = json.loads(
-            requests.get(f"https://api.polarsteps.com/trips/{POLARSTEPS_TRIP_ID}", headers={"Cookie": POLARSTEPS_COOKIE}).text
+            requests.get(f"https://api.polarsteps.com/trips/{POLARSTEPS_TRIP_ID}",
+                         headers={"Cookie": POLARSTEPS_COOKIE}).text
         )
 
         user = data['user']
         full_name = user['first_name'] + ' ' + user['last_name']
-        steps = [step for step in data['all_steps'] if 'creation_time' in step and step['creation_time'] >= last_execution_time]
+        steps = [step for step in data['all_steps'] if
+                 'creation_time' in step and step['creation_time'] >= last_execution_time]
         steps.sort(key=lambda x: x['creation_time'])
 
         if len(steps) == 0:
@@ -137,7 +158,8 @@ def lambda_handler(_, __):
             date_time = time.strftime('%Y-%m-%d %H:%M', time.localtime(step['creation_time']))
             description = step['description']
             images = ([media['large_thumbnail_path'] for media in step['media']]) if 'media' in step else []
-            step_model = Step(full_name, date_time, step['location']['country_code'], step['location']['name'], description, images)
+            step_model = Step(full_name, date_time, step['location']['country_code'], step['location']['name'],
+                              description, images)
 
             logger.info(f"{step_model.user} on {step_model.datetime} at {step_model.place} ({step_model.country})")
             logger.debug(step_model)
