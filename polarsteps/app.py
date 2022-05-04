@@ -133,7 +133,6 @@ def send_slack_message(step: Step):
 def lambda_handler(_, __):
     try:
         last_execution_time = get_last_execution_time()
-        current_time = time.time()
 
         data = json.loads(
             requests.get(f"https://api.polarsteps.com/trips/{POLARSTEPS_TRIP_ID}",
@@ -142,8 +141,7 @@ def lambda_handler(_, __):
 
         user = data['user']
         full_name = user['first_name'] + ' ' + user['last_name']
-        steps = [step for step in data['all_steps'] if
-                 'creation_time' in step and step['creation_time'] >= last_execution_time]
+        steps = [step for step in data['all_steps'] if 'creation_time' in step and step['creation_time'] > last_execution_time]
         steps.sort(key=lambda x: x['creation_time'])
 
         if len(steps) == 0:
@@ -166,7 +164,7 @@ def lambda_handler(_, __):
 
             send_slack_message(step_model)
 
-        set_last_execution_time(current_time)
+        set_last_execution_time(steps[-1]['creation_time'])
 
         logger.info("Done")
         return {
